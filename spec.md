@@ -7,7 +7,11 @@ Media Type: `application/x-bloat`
 
 ## 1. Introduction
 
-`.bloat` is a binary encoding format that deliberately couples encoded size with computational decoding cost.
+`.bloat` is a binary encoding format whose design objective is maximal storage inefficiency.
+
+The format encodes arbitrary binary data at the largest expansion factor that can be specified while keeping the encoding well defined and exactly reversible. Expansion is the purpose of the format rather than a consequence of some other design goal: a `.bloat` artifact exists in order to occupy storage, and the defined mode progression permits that occupancy to be raised beyond the limits of physically realizable storage systems.
+
+Encoded size is deliberately coupled to computational decoding cost. Because padding could be skipped by a decoder, `.bloat` does not pad. The expanded representation is itself the payload, and every encoded unit must be read and reduced in order to recover the source.
 
 The format defines three encoding modes with progressively larger asymptotic representations:
 
@@ -25,6 +29,8 @@ Unlike a conventional container format, `.bloat` does not store an ordinary payl
 
 The format is intended as an experimental storage and computation format, a benchmarking target, and a basis for competitive decoder implementations.
 
+`.bloat` does not pursue compactness, storage economy, decode latency, or throughput. These are non-goals. A modification that reduces encoded size or reconstruction work, without a corresponding gain in exactness of reconstruction, is contrary to the purpose of the format.
+
 ---
 
 ## 2. Conformance Language
@@ -36,8 +42,9 @@ An implementation conforms to `.bloat` version 0.1 if it:
 1. correctly interprets the common file header;
 2. implements at least one standard BLOAT mode;
 3. reconstructs the original source bitstream exactly;
-4. follows the encoding function specified for the declared mode; and
-5. preserves the mandatory dependency between the encoded representation and the reconstructed payload.
+4. follows the encoding function specified for the declared mode;
+5. preserves the mandatory dependency between the encoded representation and the reconstructed payload; and
+6. where it encodes, emits the complete encoded representation required by the declared mode, without logical compaction (Section 4.6).
 
 ---
 
@@ -65,7 +72,7 @@ The encoded representation is mode-dependent and is defined separately for BLOAT
 
 ## 4. Design Properties
 
-A `.bloat` encoding is designed around the following properties.
+A `.bloat` encoding is designed around the following properties. Section 4.6 is the defining property of the format; the remaining properties constrain how it is achieved.
 
 ### 4.1 Exact Reconstruction
 
@@ -100,6 +107,16 @@ Implementations MAY use:
 Each BLOAT mode is a complete source encoding.
 
 Higher-numbered modes are not containers for lower-numbered modes.
+
+### 4.6 Deliberate Expansion
+
+Maximal expansion of the source payload is the primary objective of the format.
+
+An encoder MUST emit the full encoded representation defined by the declared mode. An encoder MUST NOT reduce the encoded size of a conforming artifact below the size function specified for that mode, and MUST NOT substitute a compressed, deduplicated, or otherwise compacted representation of the encoded units at the logical level.
+
+Storage layers below the logical representation are addressed in Section 11. Such a layer MUST preserve the logical encoded values, and an implementation that relies on compaction beneath the logical representation SHOULD report both the logical encoded size and the physically occupied size, as the former is the conforming size of the artifact.
+
+Selection of a BLOAT mode is selection of an expansion class. Version 0.1 defines no mode whose expansion factor is below that of BLOAT-1.
 
 ---
 
@@ -798,6 +815,8 @@ This model is normative only with respect to the mathematical result. Implementa
 
 `.bloat` is suitable for comparative decoder benchmarking because conforming implementations operate on the same logical representation while retaining broad freedom in execution strategy.
 
+The encoding fixes the workload. The declared mode determines the size of the encoded representation and requires that every encoded unit participate in reconstruction, and no decoder may reduce either quantity. Competition therefore concerns execution of a fixed workload rather than avoidance of it, and is decided by the ingenuity and the resources an implementation brings to a representation that is intentionally unwieldy.
+
 A competition profile MAY specify:
 
 * BLOAT mode;
@@ -909,4 +928,4 @@ $$
 }
 $$
 
-This relationship between encoded size and required reconstruction work is the defining property of the `.bloat` format.
+This relationship between encoded size and required reconstruction work is the mechanism by which the format achieves its objective: encoded representations that are as large as the selected mode permits, and that cannot be reconstructed without performing work proportional to their size.
